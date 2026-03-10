@@ -1,6 +1,11 @@
 /**
  * 我喝故我在? 造型飲料點餐系統 - Discord 彩色卡片版 (VVIP 文青特調)
+ * GitHub 安全強化版 - 隱私資訊分離
  */
+
+// --- 0. 安全設定區 ---
+// 🔒 安全強化：網址已移至「專案設定 > 指令碼屬性」中的 DRINK_WEBHOOK
+const DRINK_WEBHOOK_URL = PropertiesService.getScriptProperties().getProperty('DRINK_WEBHOOK');
 
 // 1. 建立自定義管理選單
 function onOpen() {
@@ -18,13 +23,16 @@ function onOpen() {
  * 核心通知函式：發送彩色卡片
  */
 function sendDiscordEmbed(embedData) {
-  const webhookUrl = "https://discord.com/api/webhooks/1477460489322627132/W50_65JIs99GURU8UEuIDm3PlegqvxS-rOCafbxB-Edz7dyXu-x8fqLoTtRSEq44QwAZ";
+  if (!DRINK_WEBHOOK_URL || DRINK_WEBHOOK_URL.indexOf("http") === -1) {
+    console.error("找不到 DRINK_WEBHOOK 屬性，請在 GAS 專案設定中新增。");
+    return;
+  }
   
   const payload = {
     "embeds": [{
       "title": embedData.title,
       "description": embedData.description || "",
-      "color": embedData.color || 3447003, // 預設藍色
+      "color": embedData.color || 3447003, 
       "fields": embedData.fields || [],
       "footer": { "text": "⌚ 運命之刻：" + new Date().toLocaleString() }
     }]
@@ -37,7 +45,7 @@ function sendDiscordEmbed(embedData) {
   };
   
   try {
-    UrlFetchApp.fetch(webhookUrl, options);
+    UrlFetchApp.fetch(DRINK_WEBHOOK_URL, options);
   } catch (e) {
     console.error("Discord 通知失敗：" + e.toString());
   }
@@ -75,7 +83,6 @@ function doPost(e) {
     const sheet = ss.getSheetByName('Orders');
     const menuSheet = ss.getSheetByName('Menu');
     
-    // --- 撤回邏輯 ---
     if (data.action === "delete") {
       const rows = sheet.getDataRange().getValues();
       const userName = data.userName.trim();
@@ -86,7 +93,7 @@ function doPost(e) {
           
           sendDiscordEmbed({
             "title": "🔙 【飲料撤回通知】",
-            "color": 15158332, // 紅色
+            "color": 15158332, 
             "description": "這份糖分與水分的契約已被解除。",
             "fields": [
               { "name": "👤 姓名", "value": userName, "inline": true },
@@ -100,7 +107,6 @@ function doPost(e) {
       return ContentService.createTextOutput(JSON.stringify({ "result": "找不到訂單。" })).setMimeType(ContentService.MimeType.JSON);
     }
 
-    // --- 下單邏輯 ---
     if (menuSheet.getRange('G2').getValue().toString().trim() !== "開啟") {
       return ContentService.createTextOutput(JSON.stringify({ "result": "🛑 系統已關閉。" })).setMimeType(ContentService.MimeType.JSON);
     }
@@ -116,10 +122,9 @@ function doPost(e) {
       isVVIP ? "是" : (data.hasPaid ? "是" : "否"), isVVIP ? total : (Number(data.receivedAmount) || 0), data.note
     ]);
     
-    // 🚀 傳送彩色卡片通知
     sendDiscordEmbed({
       "title": isVVIP ? "✨ 【VVIP 降臨：老大請客】" : "🥤 【新訂單來囉】",
-      "color": isVVIP ? 15844367 : 3447003, // VVIP 金色，一般藍色
+      "color": isVVIP ? 15844367 : 3447003, 
       "fields": [
         { "name": "👤 點餐人", "value": data.userName, "inline": true },
         { "name": "🥤 品項", "value": data.item + " (" + data.ice + "/" + data.sugar + ")", "inline": true },
@@ -153,10 +158,9 @@ function manualOpen() {
 
 function manualClose() { 
   SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Menu').getRange('G2').setValue('關閉');
-  
   sendDiscordEmbed({
     "title": "🛑 【飲料系統截止】",
-    "color": 15105570, // 橘色
+    "color": 15105570, 
     "description": "點餐截止，準備結算帳目。"
   });
 }
