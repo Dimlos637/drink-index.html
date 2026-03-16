@@ -24,7 +24,7 @@ function onOpen() {
  */
 function sendDiscordEmbed(embedData) {
   if (!DRINK_WEBHOOK_URL || DRINK_WEBHOOK_URL.indexOf("http") === -1) {
-    console.error("找不到 DRINK_WEBHOOK 屬性，請在 GAS 專案設定中新增。");
+    Logger.log("❌ 找不到 DRINK_WEBHOOK 屬性，請在 GAS 專案設定中新增。");
     return;
   }
   
@@ -41,17 +41,19 @@ function sendDiscordEmbed(embedData) {
   const options = {
     "method": "post",
     "contentType": "application/json",
-    "payload": JSON.stringify(payload)
+    "payload": JSON.stringify(payload),
+    "muteHttpExceptions": true
   };
   
   try {
-    UrlFetchApp.fetch(DRINK_WEBHOOK_URL, options);
+    const response = UrlFetchApp.fetch(DRINK_WEBHOOK_URL, options);
+    Logger.log("Discord 回應：" + response.getContentText());
   } catch (e) {
-    console.error("Discord 通知失敗：" + e.toString());
+    Logger.log("Discord 通知失敗：" + e.toString());
   }
 }
 
-// 3. 網頁 API：提供資料
+// 3. 網頁 API：提供資料 (doGet)
 function doGet(e) {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const menuSheet = ss.getSheetByName('Menu');
@@ -66,7 +68,7 @@ function doGet(e) {
     })).setMimeType(ContentService.MimeType.JSON);
   }
 
-  const menuData = menuSheet.getRange(2, 1, menuSheet.getLastRow(), 3).getValues().filter(r => r[0] !== "" && r[0] !== null);
+  const menuData = menuSheet.getRange(2, 1, menuSheet.getLastRow(), 2).getValues().filter(r => r[0] !== "" && r[0] !== null);
   const extraData = menuSheet.getRange(2, 5, menuSheet.getLastRow(), 2).getValues().filter(r => r[0] !== "" && r[0] !== null);
   let vvipList = (vvipSheet && vvipSheet.getLastRow() >= 2) ? vvipSheet.getRange(2, 1, vvipSheet.getLastRow() - 1, 1).getValues().flat() : [];
 
@@ -75,7 +77,7 @@ function doGet(e) {
   })).setMimeType(ContentService.MimeType.JSON);
 }
 
-// 4. 訂單處理
+// 4. 訂單處理 (doPost)
 function doPost(e) {
   try {
     const data = JSON.parse(e.postData.contents);
@@ -83,6 +85,7 @@ function doPost(e) {
     const sheet = ss.getSheetByName('Orders');
     const menuSheet = ss.getSheetByName('Menu');
     
+    // --- 撤回邏輯 ---
     if (data.action === "delete") {
       const rows = sheet.getDataRange().getValues();
       const userName = data.userName.trim();
@@ -107,10 +110,12 @@ function doPost(e) {
       return ContentService.createTextOutput(JSON.stringify({ "result": "找不到訂單。" })).setMimeType(ContentService.MimeType.JSON);
     }
 
+    // 檢查系統狀態
     if (menuSheet.getRange('G2').getValue().toString().trim() !== "開啟") {
       return ContentService.createTextOutput(JSON.stringify({ "result": "🛑 系統已關閉。" })).setMimeType(ContentService.MimeType.JSON);
     }
 
+    // 計算價格與 VVIP 邏輯
     const vvipList = (ss.getSheetByName('VVIP') && ss.getSheetByName('VVIP').getLastRow() >= 2) ? ss.getSheetByName('VVIP').getRange(2, 1, ss.getSheetByName('VVIP').getLastRow() - 1, 1).getValues().flat() : [];
     const isVVIP = vvipList.includes(data.userName.trim());
     let basePrice = Number(data.price), toppingPrice = (basePrice > 35) ? 0 : (Number(data.extraPrice) || 0);
@@ -177,4 +182,15 @@ function manualArchive() {
   const d = o.getRange(2, 1, o.getLastRow() - 1, 13).getValues();
   h.getRange(h.getLastRow() + 1, 1, d.length, 13).setValues(d);
   o.getRange(2, 1, o.getLastRow() - 1, 13).clearContent();
+}
+
+/**
+ * 測試連線診斷函式
+ */
+function debugDrinkConnection() {
+  sendDiscordEmbed({
+    "title": "⚡ 飲料系統測試：安全換鎖成功",
+    "color": 3066993,
+    "description": "看到此訊息代表飲料系統的 Webhook 設定正確！"
+  });
 }
