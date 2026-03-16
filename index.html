@@ -64,6 +64,7 @@
 
 <script>
     const CONFIG = {
+        // 🚀 已填入最新的 GAS 部署網址
         GAS_API: "https://script.google.com/macros/s/AKfycbyGTYv98DOd9mxMm72pDQF08Eism1jyVOd2k4DK_onA1WZtqEn2wZEGJF9bUTjoWQHx/exec"
     };
 
@@ -80,8 +81,9 @@
             menuSel.add(new Option("-- 請選擇飲品 --", ""));
             data.menu.forEach(row => { if(row[0]) menuSel.add(new Option(`${row[0]} ($${row[1]})`, row[0])); });
             const extraSel = document.getElementById('extraSelect');
+            extraSel.add(new Option("-- 無加料 --", ""));
             data.extras.forEach(row => { let opt = new Option(`${row[0]} (+$${row[1]})`, row[0]); opt.dataset.price = row[1]; extraSel.add(opt); });
-        }).catch(() => { document.getElementById('loading').innerHTML = '<p class="text-danger">連線失敗。</p>'; });
+        }).catch(() => { document.getElementById('loading').innerHTML = '<p class="text-danger">連線失敗。請確認 GAS 部署是否設為「所有人存取」。</p>'; });
     };
 
     function updateUI() {
@@ -89,8 +91,12 @@
         currentBasePrice = selectedItem ? selectedItem[1] : 0;
         let qty = parseInt(document.getElementById('qtyInput').value) || 1;
         let extraOpt = document.getElementById('extraSelect').selectedOptions[0];
-        let extraPrice = extraOpt ? parseFloat(extraOpt.dataset.price) : 0;
-        let total = (currentBasePrice + (currentBasePrice > 35 ? 0 : extraPrice)) * qty;
+        let extraPrice = (extraOpt && extraOpt.dataset.price) ? parseFloat(extraOpt.dataset.price) : 0;
+        
+        // 50嵐加料邏輯：單價 > 35 免費加料
+        let actualExtraPrice = currentBasePrice > 35 ? 0 : extraPrice;
+        let total = (currentBasePrice + actualExtraPrice) * qty;
+        
         document.getElementById('priceDisplay').innerHTML = currentBasePrice > 0 ? `總計 <span class="price-tag">$${total}</span>` : "";
         let received = parseFloat(document.getElementById('receivedAmt').value) || 0;
         document.getElementById('changeAmt').innerText = `$${received - total}`;
@@ -105,7 +111,7 @@
         const check = document.getElementById('paidCheck');
         const label = document.getElementById('paidLabel');
         if (isVVIP) {
-            label.innerHTML = "✨ <span class='vvip-text'>恭喜解鎖『白嫖模式』</span>";
+            label.innerHTML = "✨ <span class='vvip-text'>恭喜解鎖『VVIP模式』</span>";
             check.checked = true; check.disabled = true; card.classList.add('vvip-active');
             document.getElementById('paymentSection').style.display = 'none';
         } else {
@@ -122,7 +128,7 @@
         overlay.classList.add('lightning-effect');
         setTimeout(() => overlay.classList.remove('lightning-effect'), 400);
 
-        // 📳 手機震動：模擬雷擊感 (震100ms, 停50ms, 震100ms)
+        // 📳 手機震動 (模擬雷擊感)
         if (window.navigator && window.navigator.vibrate) {
             window.navigator.vibrate([100, 50, 100]);
         }
@@ -149,7 +155,7 @@
                 userName: document.getElementById('userName').value,
                 item: document.getElementById('menuSelect').value, ice: document.getElementById('iceSelect').value,
                 sugar: document.getElementById('sugarSelect').value, extraItem: document.getElementById('extraSelect').value,
-                price: currentBasePrice, extraPrice: document.getElementById('extraSelect').selectedOptions[0] ? parseFloat(document.getElementById('extraSelect').selectedOptions[0].dataset.price) : 0,
+                price: currentBasePrice, extraPrice: document.getElementById('extraSelect').selectedOptions[0]?.dataset?.price || 0,
                 quantity: document.getElementById('qtyInput').value, note: document.getElementById('note').value,
                 hasPaid: document.getElementById('paidCheck').checked, receivedAmount: document.getElementById('receivedAmt').value
             })
