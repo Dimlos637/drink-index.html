@@ -116,9 +116,17 @@
 
     document.getElementById('randomBtn').onclick = function() {
         if (menuStore.length === 0) return;
+        
+        // ⚡ 閃電視覺特效
         const overlay = document.getElementById('flash-overlay');
         overlay.classList.add('lightning-effect');
         setTimeout(() => overlay.classList.remove('lightning-effect'), 400);
+
+        // 📳 手機震動：模擬雷擊感 (震100ms, 停50ms, 震100ms)
+        if (window.navigator && window.navigator.vibrate) {
+            window.navigator.vibrate([100, 50, 100]);
+        }
+
         document.getElementById('menuSelect').selectedIndex = Math.floor(Math.random() * menuStore.length) + 1;
         document.getElementById('iceSelect').selectedIndex = Math.floor(Math.random() * 7);
         document.getElementById('sugarSelect').selectedIndex = Math.floor(Math.random() * 6);
